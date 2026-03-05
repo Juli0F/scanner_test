@@ -1,12 +1,17 @@
 import threading
+import time
 from queue import Queue
 
 
 class ScanEngine:
 
-    def __init__(self, crawler, scanner, max_workers=5):
+    def __init__(self, crawler, scanners, max_workers=5):
         self.crawler = crawler
-        self.scanner = scanner
+        # Soportar un solo scanner o una lista de scanners
+        if isinstance(scanners, list):
+            self.scanners = scanners
+        else:
+            self.scanners = [scanners]
         self.max_workers = max_workers
         self.queue = Queue()
         self.threads = []
@@ -25,11 +30,15 @@ class ScanEngine:
 
             url, html = item
 
-            try:
-                self.scanner.scan_page(url, html)
-                self.scanner.check_stored_xss(url, html)
-            except Exception as e:
-                print(f"[Worker Error] {e}")
+            for scanner in self.scanners:
+                try:
+                    scanner.scan_page(url, html)
+
+                    # Ejecutar post_scan si el scanner lo implementa
+                    if hasattr(scanner, "post_scan"):
+                        scanner.post_scan(url, html)
+                except Exception as e:
+                    print(f"[Worker Error] [{scanner.__class__.__name__}] {e}")
 
             self.queue.task_done()
 
@@ -52,8 +61,9 @@ class ScanEngine:
         for page in pages:
             self.queue.put(page)
 
-        # Esperar que termine
-        self.queue.join()
+        # Esperar que termine (interruptible por Ctrl+C)
+        while self.queue.unfinished_tasks > 0:
+            time.sleep(0.1)
 
         # Detener workers
         for _ in self.threads:

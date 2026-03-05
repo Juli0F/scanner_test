@@ -7,7 +7,9 @@ requests==2.32.5
 beautifulsoup4==4.14.3
 
 # Callback server (confirmación XSS out-of-band)
-Flask==3.1.6
+Flask
+#==3.1.6
 
 # Testing (aún no instalado)
-pytest==8.*
+pytest
+#==8.*

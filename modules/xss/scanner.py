@@ -6,19 +6,22 @@ from modules.xss.stored_manager import StoredXSSManager
 
 class XSSScanner:
 
-    def __init__(self, requester, parser, reporter, callback_server):
+    def __init__(self, requester, parser, reporter, callback_server,
+                 callback_host="127.0.0.1", callback_port=8000):
         self.requester = requester
         self.parser = parser
         self.reporter = reporter
         self.callback_server = callback_server
+        self.callback_host = callback_host
+        self.callback_port = callback_port
         self.stored_manager = StoredXSSManager()
 
     def scan_page(self, url, html):
 
         # Generar múltiples payloads
         payloads = PayloadFactory.generate_multiple(
-            callback_host="127.0.0.1",
-            callback_port=8000
+            callback_host=self.callback_host,
+            callback_port=self.callback_port
         )
 
         # Escanear URLs
@@ -28,9 +31,13 @@ class XSSScanner:
         self._scan_forms(url, html, payloads)
 
     # ----------------------------------------
-    # LINKS
+    # Stored XSS (post-scan)
     # ----------------------------------------
-    def check_stored_xss(self, url, html):
+    def post_scan(self, url, html):
+        """Verificar Stored XSS en paginas ya visitadas."""
+        self._check_stored_xss(url, html)
+
+    def _check_stored_xss(self, url, html):
 
         pending = self.stored_manager.get_pending()
 
@@ -46,7 +53,8 @@ class XSSScanner:
                     url=url,
                     parameter=data["parameter"],
                     payload=data["payload"],
-                    severity=severity
+                    severity=severity,
+                    phase="Explotacion"
                 )
 
                 self.stored_manager.mark_confirmed(token)
@@ -146,5 +154,6 @@ class XSSScanner:
             parameter=param,
             payload=payload,
             severity=severity,
+            phase="Explotacion",
             exploit_data=exploit_data
         )
